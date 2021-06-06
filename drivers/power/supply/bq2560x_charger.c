@@ -129,6 +129,7 @@ struct bq2560x {
 	struct mutex profile_change_lock;
 	struct mutex charging_disable_lock;
 	struct mutex irq_complete;
+	struct mutex current_change_lock;
 
 	struct bq2560x_wakeup_source bq2560x_ws;
 
@@ -1201,8 +1202,10 @@ static int bq2560x_system_temp_level_set(struct bq2560x *bq,
 	#endif
 
 
+	mutex_lock(&bq->current_change_lock);
 	prev_therm_lvl = bq->therm_lvl_sel;
 	bq->therm_lvl_sel = lvl_sel;
+	mutex_unlock(&bq->current_change_lock);
 
 	ret = bq2560x_update_charging_profile(bq);
 	if (ret)
@@ -1231,8 +1234,10 @@ static void bq2560x_external_power_changed(struct power_supply *psy)
 	pr_info("current_limit = %d, usb_psy_ma = %d", current_limit, bq->usb_psy_ma);
 
 	if (bq->usb_psy_ma != current_limit) {
+		mutex_lock(&bq->current_change_lock);
 		bq->usb_psy_ma = current_limit;
 		bq2560x_update_charging_profile(bq);
+		mutex_unlock(&bq->current_change_lock);
 	}
 
 	ret = power_supply_get_property(bq->usb_psy,
@@ -2473,6 +2478,7 @@ static int bq2560x_charger_probe(struct i2c_client *client,
 	mutex_init(&bq->profile_change_lock);
 	mutex_init(&bq->charging_disable_lock);
 	mutex_init(&bq->irq_complete);
+	mutex_init(&bq->current_change_lock);
 
 	bq->resume_completed = true;
 	bq->irq_waiting = false;
