@@ -87,3 +87,4 @@ obj-$(CONFIG_AXP288_CHARGER)	+= axp288_charger.o
 obj-$(CONFIG_CHARGER_CROS_USBPD)	+= cros_usbpd-charger.o
 obj-$(CONFIG_ARCH_QCOM)		+= qcom/
 obj-$(CONFIG_BQ27426_FG)	+= bq27426_fg.o
+obj-$(CONFIG_BQ2560X_CHARGER)	+= bq2560x_charger.o
