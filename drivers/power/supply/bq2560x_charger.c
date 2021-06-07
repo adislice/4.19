@@ -54,7 +54,6 @@
 #undef pr_info
 #define pr_info pr_err
 
-
 #else
 #undef pr_info
 #define pr_info pr_debug
@@ -199,6 +198,7 @@ struct bq2560x {
 	int usb_online;
 	int charge_state;
 	int charging_disabled_status;
+	int charge_type;
 
 	int fault_status;
 
@@ -764,14 +764,17 @@ static int bq2560x_get_batt_property(struct bq2560x *bq,
 static inline bool is_device_suspended(struct bq2560x *bq);
 static int bq2560x_get_prop_charge_type(struct bq2560x *bq)
 {
+	int ret;
 	u8 val = 0;
 	if (is_device_suspended(bq))
 		return POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
 
-	bq2560x_read_byte(bq, &val, BQ2560X_REG_08);
-	val &= REG08_CHRG_STAT_MASK;
-	val >>= REG08_CHRG_STAT_SHIFT;
-	switch (val) {
+	ret = bq2560x_read_byte(bq, &val, BQ2560X_REG_08);
+	if (!ret) {
+		bq->charge_type = (val & REG08_CHRG_STAT_MASK) >> REG08_CHRG_STAT_SHIFT;
+	}
+
+	switch (bq->charge_type) {
 	case CHARGE_STATE_FASTCHG:
 		return POWER_SUPPLY_CHARGE_TYPE_FAST;
 	case CHARGE_STATE_PRECHG:
@@ -827,13 +830,11 @@ static int bq2560x_get_prop_charge_status(struct bq2560x *bq)
 		return POWER_SUPPLY_STATUS_FULL;
 
 	ret = bq2560x_read_byte(bq, &status, BQ2560X_REG_08);
-	if (ret) {
-		return 	POWER_SUPPLY_STATUS_UNKNOWN;
+	if (!ret) {
+		mutex_lock(&bq->data_lock);
+		bq->charge_state = (status & REG08_CHRG_STAT_MASK) >> REG08_CHRG_STAT_SHIFT;
+		mutex_unlock(&bq->data_lock);
 	}
-
-	mutex_lock(&bq->data_lock);
-	bq->charge_state = (status & REG08_CHRG_STAT_MASK) >> REG08_CHRG_STAT_SHIFT;
-	mutex_unlock(&bq->data_lock);
 
 	switch(bq->charge_state) {
 	case CHARGE_STATE_FASTCHG:
