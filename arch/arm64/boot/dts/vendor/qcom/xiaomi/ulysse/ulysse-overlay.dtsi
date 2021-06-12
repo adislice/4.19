@@ -12,9 +12,9 @@
  * GNU General Public License for more details.
  */
 
-#include "ulysse-audio.dtsi"
+//#include "ulysse-audio.dtsi"
 #include "ulysse-battery.dtsi"
-#include "ulysse-camera.dtsi"
+//#include "ulysse-camera.dtsi"
 #include "ulysse-camera-pinctrl.dtsi"
 #include "ulysse-general.dtsi"
 #include "ulysse-mdss.dtsi"
