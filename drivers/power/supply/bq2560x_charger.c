@@ -30,7 +30,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/err.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/machine.h>
