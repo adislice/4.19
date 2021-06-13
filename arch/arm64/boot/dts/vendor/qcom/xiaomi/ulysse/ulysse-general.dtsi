@@ -12,6 +12,14 @@
  * GNU General Public License for more details.
  */
 
+ / {
+	reserved-memory {
+		other_ext_mem: other_ext_region@0 {
+			reg = <0x0 0x84A00000 0x0 0x1E00000>;
+		};
+	};
+};
+
 &apps_iommu {
 	qcom,no-aarch64;
 };
@@ -34,12 +42,6 @@
 			};
 		};
 	};
-};
-
-&other_ext_mem {
-	compatible = "removed-dma-pool";
-	no-map;
-	reg = <0x0 0x84a00000 0x0 0x1E00000>;
 };
 
 &soc {
