@@ -86,7 +86,7 @@ enum wakeup_src {
 
 #define WAKEUP_SRC_MASK (~(~0 << WAKEUP_SRC_MAX))
 struct bq2560x_wakeup_source {
-	struct wakeup_source source;
+	struct wakeup_source *source;
 	unsigned long enabled_bitmap;
 	spinlock_t ws_lock;
 };
@@ -349,9 +349,9 @@ static void bq2560x_stay_awake(struct bq2560x_wakeup_source *source,
 	spin_lock_irqsave(&source->ws_lock, flags);
 
 	if (!__test_and_set_bit(wk_src, &source->enabled_bitmap)) {
-		__pm_stay_awake(&source->source);
+		__pm_stay_awake(source->source);
 		pr_debug("enabled source %s, wakeup_src %d\n",
-			source->source.name, wk_src);
+			source->source->name, wk_src);
 	}
 	spin_unlock_irqrestore(&source->ws_lock, flags);
 }
@@ -364,19 +364,19 @@ static void bq2560x_relax(struct bq2560x_wakeup_source *source,
 	spin_lock_irqsave(&source->ws_lock, flags);
 	if (__test_and_clear_bit(wk_src, &source->enabled_bitmap) &&
 		!(source->enabled_bitmap & WAKEUP_SRC_MASK)) {
-		__pm_relax(&source->source);
-		pr_debug("disabled source %s\n", source->source.name);
+		__pm_relax(source->source);
+		pr_debug("disabled source %s\n", source->source->name);
 	}
 	spin_unlock_irqrestore(&source->ws_lock, flags);
 
 	pr_debug("relax source %s, wakeup_src %d\n",
-		source->source.name, wk_src);
+		source->source->name, wk_src);
 }
 
 static void bq2560x_wakeup_src_init(struct bq2560x *bq)
 {
 	spin_lock_init(&bq->bq2560x_ws.ws_lock);
-	wakeup_source_init(&bq->bq2560x_ws.source, "bq2560x");
+	bq->bq2560x_ws.source = wakeup_source_register(bq->dev, "bq2560x");
 }
 
 
@@ -1296,7 +1296,7 @@ static int bq2560x_psy_register(struct bq2560x *bq)
 
 	bq->batt_psy = devm_power_supply_register(bq->dev, &bq->batt_psy_desc, &batt_psy_cfg);
 	if (IS_ERR(bq->batt_psy)) {
-		pr_err("failed to register batt_psy:%d\n", PTR_ERR(bq->batt_psy));
+		pr_err("failed to register batt_psy:%ld\n", PTR_ERR(bq->batt_psy));
 		return PTR_ERR(bq->batt_psy);
 	}
 
@@ -2459,6 +2459,7 @@ static int bq2560x_charger_probe(struct i2c_client *client,
 	bms_psy = power_supply_get_by_name("bms");
 	if (!bms_psy) {
 		dev_dbg(&client->dev, "bms supply not found, defer probe\n");
+		pr_err("bms psy not found, defer probe");
 		return -EPROBE_DEFER;
 	}
 
