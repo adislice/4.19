@@ -66,7 +66,7 @@ struct pctrl_data *pin_data = NULL;
 #endif
 u8 g_fwver = 255;
 char g_fwver_buff[128];
-extern char g_lcd_id[128];
+char g_lcd_id[128] = "shenchao";
 static struct work_struct g_resume_work;
 struct mutex ft5435_resume_mutex;
 
