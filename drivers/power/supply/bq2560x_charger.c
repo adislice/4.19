@@ -2529,9 +2529,8 @@ static int bq2560x_charger_probe(struct i2c_client *client,
 		ret = devm_gpio_request(&client->dev, bq->gpio_ce, "bq2560x_ce");
 		if (ret) {
 			pr_err("Failed to request chip enable gpio %d:, err: %d\n", bq->gpio_ce, ret);
-			return ret;
-		}
-		gpio_direction_output(bq->gpio_ce, 0);
+		} else
+			gpio_direction_output(bq->gpio_ce, 0);
 	}
 
 	ret = bq2560x_init_device(bq);
