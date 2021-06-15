@@ -1611,9 +1611,11 @@ void bq27xxx_battery_update(struct bq27xxx_device_info *di)
 			cache.power_avg = bq27xxx_battery_read_pwr_avg(di);
 
 		/* We only have to read charge design full once */
-#ifndef CONFIG_MACH_XIAOMI_ULYSSE
 		if (di->charge_design_full <= 0)
+#ifndef CONFIG_MACH_XIAOMI_ULYSSE
 			di->charge_design_full = bq27xxx_battery_read_dcap(di);
+#else
+			di->charge_design_full = 3080;
 #endif
 	}
 
@@ -1814,7 +1816,11 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 		ret = bq27xxx_simple_value(di->cache.time_to_full, val);
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
+#ifndef CONFIG_MACH_XIAOMI_ULYSSE
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+#else
+		val->intval = POWER_SUPPLY_TECHNOLOGY_LIPO;
+#endif
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
 		ret = bq27xxx_simple_value(bq27xxx_battery_read_nac(di), val);
