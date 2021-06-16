@@ -32,10 +32,11 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&bq_int_default>;
 		vdd-supply = <&pm8937_l16>;
+		io-channels = <&pm8937_vadc VADC_LR_MUX2_BAT_ID>;
+		io-channel-names = "batt_id";
 		ti,battery-type-b = "feimaotui_3080mah";
 		ti,battery-type-a = "guangyu_3080mah";
 		ti,batt-profile-select;
-		qcom,batt_id-vadc = <&pm8937_vadc>;
 		ti,profile-a-rid-kohm = <22>;
 		ti,profile-b-rid-kohm = <110>;
 		ti,batt-id-vref-uv = <1800000>;
