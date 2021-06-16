@@ -41,6 +41,7 @@
 #include <linux/debugfs.h>
 #include <linux/qpnp/qpnp-adc.h>
 #include <linux/alarmtimer.h>
+#include <linux/iio/consumer.h>
 #include "bqfs_cmd_type.h"
 
 #include "bq27426_gmfs_scud.h"
@@ -253,8 +254,7 @@ struct bq_fg_chip {
 
 	struct power_supply *fg_psy;
 	struct power_supply_desc fg_psy_desc;
-
-	struct qpnp_vadc_chip	*vadc_dev;
+	struct iio_channel *batt_id_chan;
 	struct regulator		*vdd;
 	u32	connected_rid;
 #if 0
@@ -1877,14 +1877,12 @@ static void convert_rid2battid(struct bq_fg_chip *bq)
 static int fg_parse_batt_id(struct bq_fg_chip *bq)
 {
 	int rc = 0, rpull = 0, vref = 0;
-	int64_t denom, batt_id_uv;
+	int batt_id_mv, batt_resistor;
 	struct device_node *node = bq->dev->of_node;
-	struct qpnp_vadc_result result;
 
 	bq->vdd = regulator_get(bq->dev, "vdd");
 	if (IS_ERR(bq->vdd)) {
 		pr_err("Regulator get failed vdd rc=%d\n", rc);
-
 	}
 
 	if (regulator_count_voltages(bq->vdd) > 0) {
@@ -1906,42 +1904,29 @@ static int fg_parse_batt_id(struct bq_fg_chip *bq)
 		return rc;
 	}
 
-
 	rc = of_property_read_u32(node, "ti,batt-id-rpullup-kohm", &rpull);
 	if (rc < 0) {
 		pr_err("Couldn't read batt-id-rpullup-kohm rc=%d\n", rc);
 		return rc;
 	}
+
 	pr_debug("fg_parse_batt_id begin read battery ID \n");
-	rc = qpnp_vadc_read(bq->vadc_dev, P_MUX2_1_1, &result);
-	if (rc) {
-		pr_err("error reading batt id channel = %d, rc = %d\n",
-					LR_MUX2_BAT_ID, rc);
+	rc = iio_read_channel_processed(bq->batt_id_chan, &batt_id_mv);
+	if (rc < 0) {
+		pr_err("Error in reading batt_id channel, rc=%d\n", rc);
 		return rc;
 	}
+	pr_debug("fg_parse_batt_id batt_id_mv from ADC = %d\n", batt_id_mv);
 
-
-	batt_id_uv = result.physical;
-
-
-	pr_debug("fg_parse_batt_id  batt_id_uv = %lld\n",batt_id_uv);
-
-	if (batt_id_uv == 0) {
-		pr_err("batt_id_uv = 0, batt-id grounded using same profile\n");
+	if (batt_id_mv == 0) {
+		pr_err("batt_id_mv = 0, batt-id grounded using same profile\n");
 		return 0;
 	}
 
-	denom = div64_s64(vref * 1000000LL, batt_id_uv) - 1000000LL;
-
-
-	pr_debug("fg_parse_batt_id  denom = %lld,rpull=%d\n",denom,rpull);
-	if (denom == 0) {
-		pr_err("smb_parse_batt_id batt id connector might be open, return 0 kohms");
-		return 0;
-	}
-	bq->connected_rid = div64_s64(rpull * 1000000LL + denom/2, denom);
-	pr_err("batt_id_voltage = %lld, connected_rid = %d\n",
-			batt_id_uv, bq->connected_rid);
+	batt_resistor = (rpull * batt_id_mv * 155) / (vref - batt_id_mv);
+	bq->connected_rid = batt_resistor;
+	pr_err("batt_id_voltage = %d, connected_rid = %d\n",
+			batt_id_mv, bq->connected_rid);
 
 	convert_rid2battid(bq);
 
@@ -2047,16 +2032,22 @@ static int bq_fg_probe(struct i2c_client *client,
 	bq->resume_completed = true;
 	bq->irq_waiting = false;
 
-	bq->vadc_dev = qpnp_get_vadc(bq->dev, "batt_id");
-	if (IS_ERR(bq->vadc_dev)) {
-		ret = PTR_ERR(bq->vadc_dev);
-		if (ret == -EPROBE_DEFER)
-			pr_err("vadc not found - defer rc=%d\n", ret);
-		else
-			pr_err("vadc property missing, rc=%d\n", ret);
-
+	ret = of_property_match_string(bq->dev->of_node, "io-channel-names",
+					"batt_id");
+	if (ret >= 0) {
+		bq->batt_id_chan = devm_iio_channel_get(bq->dev, "batt_id");
+		if (IS_ERR(bq->batt_id_chan)) {
+			ret = PTR_ERR(bq->batt_id_chan);
+			if (ret != -EPROBE_DEFER)
+				pr_err("Couldn't get batt_id channel, rc=%d\n", ret);
+			bq->batt_id_chan = NULL;
+			return ret;
+		}
+	} else {
+		pr_err("io-channel-names property missing, rc=%d", ret);
 		return ret;
 	}
+
 	ret = bq_parse_dt(bq);
 	if (ret < 0) {
 		dev_err(&client->dev, "Unable to parse DT nodes\n");
