@@ -61,17 +61,14 @@
 };
 
 &pm8937_vadc {
-	chan@11 {
+	/delete-node/ pa_therm1;
+
+	batt_rid {
+		reg = <VADC_LR_MUX2_BAT_ID>;
 		label = "batt_rid";
-		reg = <0x11>;
-		qcom,decimation = <0>;
-		qcom,pre-div-channel-scaling = <0>;
-		qcom,calibration-type = "ratiometric";
-		qcom,scale-function = <0>;
-		qcom,hw-settle-time = <2>;
-		qcom,fast-avg-setup = <0>;
-		/delete-property/ qcom,vadc-thermal-node;
-		status = "okay";
+		qcom,ratiometric;
+		qcom,hw-settle-time = <2000>;
+		qcom,pre-scaling = <1 1>;
 	};
 };
 
